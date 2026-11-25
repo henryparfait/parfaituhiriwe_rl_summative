@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kagugu Follow-Up Coordinator - live agent view</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --ink:#1d2433; --muted:#5b6577; --panel:rgba(255,255,255,0.92); --amber:#f2a33a; --red:#d64545;
+          --green:#2e9e5b; --blue:#2f7ed8; --teal:#16897f; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; overflow:hidden; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color:var(--ink); background:#cfe8f3; }
+  #scene, #fallback { position:absolute; inset:0; width:100%; height:100%; }
+  #fallback { display:none; background:#e9f2e3; }
+  .panel { position:absolute; background:var(--panel); border-radius:12px; padding:14px 16px;
+           box-shadow:0 4px 18px rgba(0,0,0,0.12); font-size:13px; line-height:1.45; }
+  #hud { top:14px; left:14px; width:330px; }
+  #outcomes { top:14px; right:14px; width:250px; }
+  #legend { bottom:14px; left:14px; right:14px; display:flex; gap:18px; flex-wrap:wrap; align-items:center; padding:10px 16px; }
+  h1 { font-size:16px; margin:0 0 2px; }
+  .sub { color:var(--muted); font-size:12px; margin-bottom:10px; }
+  .row { display:flex; justify-content:space-between; margin:3px 0; }
+  .bar { height:8px; background:#e3e7ee; border-radius:4px; overflow:hidden; margin:4px 0 8px; }
+  .bar > div { height:100%; background:var(--teal); width:0%; transition:width .3s; }
+  .dots span { display:inline-block; width:11px; height:11px; border-radius:50%; margin-left:3px; background:#d6dbe3; }
+  .dots span.on { background:var(--green); }
+  #action { font-weight:600; margin-top:8px; }
+  #event { margin-top:4px; padding:6px 8px; border-radius:6px; background:#f1f4f8; min-height:30px; }
+  #event.good { background:#e3f5ea; color:#1d6b3d; } #event.bad { background:#fbe7e7; color:#8f2525; }
+  .big { font-size:22px; font-weight:700; }
+  .k { color:var(--muted); }
+  .sw { display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+  #mode { color:var(--muted); font-size:11px; margin-left:auto; }
+  #wait { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:15px; color:var(--muted); }
+</style>
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="scene"></div>
+<canvas id="fallback"></canvas>
+<div id="wait">Waiting for the agent to start...</div>
+
+<div id="hud" class="panel">
+  <h1>Kagugu Follow-Up Coordinator</h1>
+  <div class="sub">RL agent managing HPV-positive women: triage &rarr; thermal ablation</div>
+  <div class="row"><span class="k">Programme day</span><span id="day">-</span></div>
+  <div class="bar"><div id="daybar"></div></div>
+  <div class="row"><span class="k">Decisions left today</span><span id="dec">-</span></div>
+  <div class="row"><span class="k">CHW home visits left this week</span><span id="chw" class="dots"></span></div>
+  <div class="row"><span class="k">Step reward</span><span id="rew">-</span></div>
+  <div class="row"><span class="k">Episode return</span><span id="ret" class="big">-</span></div>
+  <div id="action">-</div>
+  <div id="event">-</div>
+</div>
+
+<div id="outcomes" class="panel">
+  <h1>Outcomes this period</h1>
+  <div class="sub">Live counters from the simulator</div>
+  <div class="row"><span class="k">Precancers treated</span><b id="o_tp">0</b></div>
+  <div class="row"><span class="k">Screen-positive treated</span><b id="o_to">0</b></div>
+  <div class="row"><span class="k">Triage visits completed</span><b id="o_tr">0</b></div>
+  <div class="row"><span class="k">Correct discharges</span><b id="o_cd">0</b></div>
+  <div class="row"><span class="k">Missed lesions (false neg.)</span><b id="o_ml">0</b></div>
+  <div class="row"><span class="k">Precancers lost to follow-up</span><b id="o_lp" style="color:var(--red)">0</b></div>
+  <div class="row"><span class="k">Other women lost</span><b id="o_lo">0</b></div>
+  <div class="row"><span class="k">SMS sent / CHW visits</span><b id="o_comm">0 / 0</b></div>
+  <div class="row"><span class="k">Invalid actions</span><b id="o_inv">0</b></div>
+  <div class="row"><span class="k">Precancer treatment rate</span><b id="o_rate">-</b></div>
+</div>
+
+<div id="legend" class="panel">
+  <span><span class="sw" style="background:var(--amber)"></span>Awaiting AI-assisted triage</span>
+  <span><span class="sw" style="background:var(--red)"></span>Triage-positive, awaiting ablation</span>
+  <span><span class="sw" style="background:#b9bec7"></span>Empty slot</span>
+  <span><span class="sw" style="background:linear-gradient(90deg,#d64545,#2e9e5b)"></span>Bar = engagement estimate</span>
+  <span><span class="sw" style="background:var(--blue)"></span>SMS / has phone</span>
+  <span><span class="sw" style="background:var(--green)"></span>CHW visit</span>
+  <span><span class="sw" style="background:#e46fb1"></span>Woman travelling to clinic</span>
+  <span id="mode"></span>
+</div>
+
+<script type="module">
+let THREE = null, OrbitControls = null;
+try {
+  THREE = await import('three');
+  ({ OrbitControls } = await import('three/addons/controls/OrbitControls.js'));
+} catch (e) {
+  console.warn('three.js could not be loaded - using 2D fallback', e);
+  THREE = null;
+}
+
+const N = 8;
+const STAGE_COLORS = { 0: 0xb9bec7, 1: 0xf2a33a, 2: 0xd64545 };
+const $ = (id) => document.getElementById(id);
+let state = null, lastT = -1, lastUids = new Array(N).fill(0);
+const anims = [];   // {update(dt) -> bool alive}
+
+function slotAngle(i) { return (i / N) * Math.PI * 2 + Math.PI / 8; }
+function slotRadius(w) { return 6 + (w && w.active ? w.distance_km : 4) * 1.6; }
+function slotXZ(i, w) { const a = slotAngle(i), r = slotRadius(w); return [Math.cos(a) * r, Math.sin(a) * r]; }
+function engColor(e) {           // red -> amber -> green
+  const r = e < 0.5 ? 214 : Math.round(214 - (e - 0.5) * 2 * (214 - 46));
+  const g = e < 0.5 ? Math.round(69 + e * 2 * (158 - 69)) : 158;
+  return (r << 16) | (g << 8) | 91;
+}
+
+// ------------------------------------------------------------------ HUD (shared)
+function updateHud(s) {
+  $('wait').style.display = 'none';
+  $('day').textContent = `${s.day} / ${s.horizon}`;
+  $('daybar').style.width = `${Math.min(100, 100 * s.day / s.horizon)}%`;
+  $('dec').textContent = s.decisions_left;
+  $('chw').innerHTML = Array.from({ length: s.chw_weekly_budget }, (_, k) =>
+    `<span class="${k < s.chw_budget ? 'on' : ''}"></span>`).join('');
+  $('rew').textContent = (s.last_reward >= 0 ? '+' : '') + s.last_reward.toFixed(2);
+  $('ret').textContent = s.episode_return.toFixed(1);
+  $('action').textContent = 'Agent action: ' + s.last_action.text;
+  const ev = $('event');
+  ev.textContent = s.last_event;
+  ev.className = s.last_reward >= 1 ? 'good' : (s.last_reward <= -0.5 ? 'bad' : '');
+  const st = s.stats;
+  $('o_tp').textContent = st.treated_precancer; $('o_to').textContent = st.treated_other;
+  $('o_tr').textContent = st.triaged; $('o_cd').textContent = st.correct_discharges;
+  $('o_ml').textContent = st.missed_lesions; $('o_lp').textContent = st.lost_precancer;
+  $('o_lo').textContent = st.lost_other; $('o_comm').textContent = `${st.sms_sent} / ${st.chw_visits}`;
+  $('o_inv').textContent = st.invalid_actions;
+  $('o_rate').textContent = (100 * st.precancer_treatment_rate).toFixed(0) + '%';
+}
+
+// ------------------------------------------------------------------ 3D scene
+let scene3d = null;
+function build3D() {
+  const host = $('scene');
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  host.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xcfe8f3);
+  scene.fog = new THREE.Fog(0xcfe8f3, 60, 140);
+  const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 400);
+  camera.position.set(0, 24, 31);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 0, 0);
+  controls.enableDamping = true;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.35;
+  controls.maxPolarAngle = Math.PI * 0.47;
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x6b8f4e, 0.9));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+  sun.position.set(20, 40, 15);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -40, right: 40, top: 40, bottom: -40 });
+  scene.add(sun);
+
+  // ground + Kigali hills
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(80, 64),
+    new THREE.MeshStandardMaterial({ color: 0x86b462, roughness: 1 }));
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+  const hillMat = new THREE.MeshStandardMaterial({ color: 0x6f9c4f, roughness: 1, flatShading: true });
+  [[-45, -40, 22], [40, -48, 26], [55, 10, 18], [-55, 15, 20], [5, -62, 24]].forEach(([x, z, r]) => {
+    const h = new THREE.Mesh(new THREE.SphereGeometry(r, 9, 6), hillMat);
+    h.position.set(x, -r * 0.55, z); h.scale.y = 0.55; scene.add(h);
+  });
+
+  // Kagugu Health Centre
+  const hc = new THREE.Group();
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(6, 2.6, 4.2),
+    new THREE.MeshStandardMaterial({ color: 0xf4f4f0 }));
+  walls.position.y = 1.3; walls.castShadow = true; hc.add(walls);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(6.6, 0.35, 4.8),
+    new THREE.MeshStandardMaterial({ color: 0x2f6f9f }));
+  roof.position.y = 2.78; roof.castShadow = true; hc.add(roof);
+  const crossMat = new THREE.MeshStandardMaterial({ color: 0x16897f, emissive: 0x16897f, emissiveIntensity: 0.3 });
+  const c1 = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.4, 0.12), crossMat);
+  const c2 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.4, 0.12), crossMat);
+  c1.position.set(0, 1.6, 2.15); c2.position.set(0, 1.6, 2.15); hc.add(c1, c2);
+  scene.add(hc);
+  const hcLabel = makeLabel('Kagugu Health Centre', '#16897f');
+  hcLabel.position.set(0, 4.8, 0); hcLabel.scale.set(9, 2.25, 1); scene.add(hcLabel);
+
+  // houses
+  const houses = [];
+  for (let i = 0; i < N; i++) {
+    const g = new THREE.Group();
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xc98b5a, transparent: true });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.3, 1.8), wallMat);
+    body.position.y = 0.65; body.castShadow = true; g.add(body);
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x8a8f96, transparent: true });
+    const r = new THREE.Mesh(new THREE.ConeGeometry(1.65, 1.0, 4), roofMat);
+    r.position.y = 1.8; r.rotation.y = Math.PI / 4; r.castShadow = true; g.add(r);
+    const beaconMat = new THREE.MeshStandardMaterial({ color: 0xf2a33a, emissive: 0xf2a33a, emissiveIntensity: 0.45 });
+    const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.45, 20, 14), beaconMat);
+    beacon.position.y = 3.0; g.add(beacon);
+    const barMat = new THREE.MeshStandardMaterial({ color: 0x2e9e5b });
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1, 12), barMat);
+    bar.position.set(1.35, 0.5, 0); g.add(bar);
+    const phone = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.5, 0.12),
+      new THREE.MeshStandardMaterial({ color: 0x2f7ed8, emissive: 0x2f7ed8, emissiveIntensity: 0.3 }));
+    phone.position.set(-1.25, 0.4, 0.9); g.add(phone);
+    const label = makeLabel(`W${i + 1}`, '#1d2433');
+    label.position.y = 4.4; label.scale.set(5.2, 1.3, 1); g.add(label);
+    const pathGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+    const path = new THREE.Line(pathGeo, new THREE.LineBasicMaterial({ color: 0xb5651d }));
+    scene.add(path); scene.add(g);
+    houses.push({ g, wallMat, roofMat, beacon, beaconMat, bar, barMat, phone, label, path, labelText: '' });
+  }
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+  window.addEventListener('keydown', (e) => { if (e.key === 'r' || e.key === 'R') controls.autoRotate = !controls.autoRotate; });
+
+  scene3d = { renderer, scene, camera, controls, houses, crossMat };
+}
+
+function makeLabel(text, color) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512; canvas.height = 128;
+  const tex = new THREE.CanvasTexture(canvas);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  sprite.userData = { canvas, tex };
+  drawLabel(sprite, text, color);
+  return sprite;
+}
+function drawLabel(sprite, text, color) {
+  const { canvas, tex } = sprite.userData;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(255,255,255,0.88)';
+  ctx.beginPath(); ctx.roundRect(8, 16, canvas.width - 16, canvas.height - 32, 28); ctx.fill();
+  ctx.fillStyle = color;
+  let size = 60;
+  do { ctx.font = `bold ${size}px Segoe UI, sans-serif`; size -= 2; }
+  while (ctx.measureText(text).width > canvas.width - 60 && size > 20);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 2);
+  tex.needsUpdate = true;
+}
+
+function sync3D(s) {
+  s.women.forEach((w, i) => {
+    const h = scene3d.houses[i];
+    const [x, z] = slotXZ(i, w);
+    h.g.position.set(x, 0, z);
+    h.path.geometry.setFromPoints([new THREE.Vector3(0, 0.05, 0), new THREE.Vector3(x, 0.05, z)]);
+    const op = w.active ? 1 : 0.25;
+    h.wallMat.opacity = op; h.roofMat.opacity = op;
+    h.beacon.visible = w.active; h.bar.visible = w.active; h.phone.visible = w.active && w.has_phone;
+    h.beaconMat.color.setHex(STAGE_COLORS[w.stage]); h.beaconMat.emissive.setHex(STAGE_COLORS[w.stage]);
+    const e = Math.max(0.03, w.engagement);
+    h.bar.scale.y = e * 3; h.bar.position.y = e * 1.5;
+    h.barMat.color.setHex(engColor(w.engagement));
+    const text = w.active ? `W${w.slot} ${(w.engagement * 100).toFixed(0)}%` : `W${w.slot} empty`;
+    if (text !== h.labelText) { drawLabel(h.label, text, w.active ? '#1d2433' : '#8a909b'); h.labelText = text; }
+  });
+}
+
+// moving token from a to b (optionally back), used for SMS / CHW / patient trips
+function token3D(color, radius, from, to, secs, roundTrip, arc, onArrive) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.35 });
+  if (radius > 0.3) {               // a person: body + head
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.35, 1.1, 12), mat);
+    body.position.y = 0.55; g.add(body);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 10), mat);
+    head.position.y = 1.35; g.add(head);
+  } else {
+    g.add(new THREE.Mesh(new THREE.SphereGeometry(radius, 14, 10), mat));
+  }
+  scene3d.scene.add(g);
+  let t = 0, arrived = false;
+  anims.push({
+    update(dt) {
+      t += dt / secs;
+      let u = roundTrip ? (t < 0.5 ? t * 2 : 2 - t * 2) : Math.min(t, 1);
+      u = Math.max(0, Math.min(1, u));
+      g.position.set(from[0] + (to[0] - from[0]) * u, arc * Math.sin(Math.PI * u), from[1] + (to[1] - from[1]) * u);
+      if (!arrived && ((roundTrip && t >= 0.5) || (!roundTrip && t >= 1))) { arrived = true; if (onArrive) onArrive(); }
+      if (t >= 1) { scene3d.scene.remove(g); return false; }
+      return true;
+    }
+  });
+}
+function flash3D(pos, color) {
+  const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6 });
+  const m = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), mat);
+  m.position.set(pos[0], 1.5, pos[1]); scene3d.scene.add(m);
+  let t = 0;
+  anims.push({ update(dt) { t += dt / 0.8; m.scale.setScalar(1 + t * 2.5); mat.opacity = 0.6 * (1 - t);
+    if (t >= 1) { scene3d.scene.remove(m); return false; } return true; } });
+}
+
+function animateAction3D(prev, s) {
+  const a = s.last_action;
+  const ev = s.last_event || '';
+  // women who vanished without being served this step were lost to follow-up
+  s.women.forEach((w, i) => {
+    const before = prev && prev.women[i];
+    if (before && before.active && (!w.active || w.uid !== before.uid) && a.slot !== i + 1) {
+      flash3D(slotXZ(i, before), 0x777777);
+    }
+  });
+  if (a.slot <= 0) return;
+  const i = a.slot - 1;
+  const w = (prev && prev.women[i]) || s.women[i];
+  const home = slotXZ(i, w), hc = [0, 0];
+  if (ev.startsWith('Invalid')) { flash3D(home, 0xd64545); return; }
+  if (a.intervention === 0) token3D(0x2f7ed8, 0.25, hc, home, 0.6, false, 3, null);
+  else if (a.intervention === 1) token3D(0x2e9e5b, 0.5, hc, home, 1.3, true, 0, () => flash3D(home, 0x2e9e5b));
+  else {
+    const col = a.intervention === 2 ? 0xf2a33a : 0x2e9e5b;
+    const ok = !ev.includes('did not attend');
+    if (ok) token3D(0xe46fb1, 0.5, home, hc, 1.1, false, 0, () => flash3D(hc, col));
+    else flash3D(home, 0x999999);
+  }
+}
+
+// ------------------------------------------------------------------ 2D fallback
+function draw2D(s) {
+  const cv = $('fallback');
+  cv.width = window.innerWidth; cv.height = window.innerHeight;
+  const ctx = cv.getContext('2d');
+  const cx = cv.width / 2, cy = cv.height / 2 - 30, k = Math.min(cv.width, cv.height - 140) / 44;
+  ctx.fillStyle = '#e9f2e3'; ctx.fillRect(0, 0, cv.width, cv.height);
+  s.women.forEach((w, i) => {
+    const [x, z] = slotXZ(i, w);
+    const px = cx + x * k, py = cy + z * k;
+    ctx.strokeStyle = '#b5651d'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.stroke();
+    ctx.fillStyle = '#' + STAGE_COLORS[w.stage].toString(16).padStart(6, '0');
+    ctx.beginPath(); ctx.arc(px, py, 16, 0, Math.PI * 2); ctx.fill();
+    if (w.active) {
+      ctx.strokeStyle = '#' + engColor(w.engagement).toString(16).padStart(6, '0'); ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.arc(px, py, 22, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * w.engagement); ctx.stroke();
+    }
+    if (s.last_action.slot === i + 1) { ctx.strokeStyle = '#1d2433'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(px, py, 28, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.fillStyle = '#1d2433'; ctx.font = 'bold 13px Segoe UI, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(w.active ? `W${w.slot} ${(w.engagement * 100).toFixed(0)}%` : `W${w.slot}`, px, py + 42);
+  });
+  ctx.fillStyle = '#16897f'; ctx.fillRect(cx - 34, cy - 22, 68, 44);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Segoe UI, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('Kagugu HC', cx, cy + 4);
+}
+
+// ------------------------------------------------------------------ main loop
+const use3D = !!THREE;
+$('mode').textContent = use3D ? 'Renderer: three.js WebGL 3D (drag to orbit, R = auto-rotate)' : 'Renderer: 2D fallback (three.js unavailable)';
+if (use3D) build3D(); else $('fallback').style.display = 'block';
+
+async function poll() {
+  try {
+    const res = await fetch('/api/state', { cache: 'no-store' });
+    const s = await res.json();
+    if (s && s.women) {
+      if (s.t !== lastT) {
+        const prev = state;
+        state = s; lastT = s.t;
+        updateHud(s);
+        if (use3D) { sync3D(s); if (prev && s.t > prev.t) animateAction3D(prev, s); }
+        else draw2D(s);
+      }
+    }
+  } catch (e) { /* server may be restarting between episodes */ }
+  setTimeout(poll, 120);
+}
+poll();
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  for (let i = anims.length - 1; i >= 0; i--) if (!anims[i].update(dt)) anims.splice(i, 1);
+  if (use3D) {
+    scene3d.crossMat.emissiveIntensity = 0.3 + 0.2 * Math.sin(now / 400);
+    scene3d.controls.update();
+    scene3d.renderer.render(scene3d.scene, scene3d.camera);
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+window.__viewerReady = true;
+</script>
+</body>
+</html>

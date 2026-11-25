@@ -1,0 +1,34 @@
+[project]
+name = "kagugu-rl-summative"
+version = "1.0.0"
+description = "Reinforcement learning (DQN, REINFORCE, A2C, PPO with TorchRL) for follow-up coordination of HPV-positive women at Kagugu Health Centre, Rwanda."
+readme = "README.md"
+authors = [{ name = "Henry Christian Parfait" }]
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "torch>=2.11",
+    "torchrl>=0.15,<0.16",
+    "gymnasium>=1.0",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "matplotlib>=3.8",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.uv]
+package = false
+
+# CPU-only PyTorch on Windows/Linux: ~5x smaller download than the CUDA build, and these
+# small MLP agents train just as fast on CPU.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
