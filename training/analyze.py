@@ -214,6 +214,8 @@ def main():
         summ, prog = data["dqn"]
         fig, axes = plt.subplots(1, 2, figsize=(10, 3.8))
         for rid, df in prog.items():
+            if rid.endswith("_long"):
+                continue
             is_best = rid == best["dqn"]
             kw = dict(color=COLORS["dqn"] if is_best else GREY, lw=2 if is_best else 0.9,
                       alpha=1 if is_best else 0.55, zorder=3 if is_best else 1,
@@ -234,6 +236,8 @@ def main():
         fig, axes = plt.subplots(1, len(pg), figsize=(4 * len(pg), 3.6), sharey=True, squeeze=False)
         for ax, a in zip(axes[0], pg):
             for rid, df in data[a][1].items():
+                if rid.endswith("_long"):
+                    continue
                 is_best = rid == best[a]
                 d = df.dropna(subset=["entropy"])
                 ax.plot(d["frames"], smooth(d["entropy"], 5), color=COLORS[a] if is_best else GREY,
@@ -250,12 +254,14 @@ def main():
             ax.set_visible(False)
             continue
         for rid, df in data[a][1].items():
+            if rid.endswith("_long"):
+                continue
             is_best = rid == best[a]
             d = df.dropna(subset=["train_return"])
             ax.plot(d["frames"], smooth(d["train_return"], 8), color=COLORS[a] if is_best else GREY,
                     lw=2 if is_best else 0.9, alpha=1 if is_best else 0.5, zorder=3 if is_best else 1)
         ax.axhline(base[("Heuristic", "final")][0], color=MUTED, ls="--", lw=1)
-        ax.set(title=f"{NAMES[a]}: training return, all {len(data[a][1])} runs", xlabel="Frames")
+        ax.set(title=f"{NAMES[a]}: training return, all {sum(not r.endswith('_long') for r in data[a][1])} runs", xlabel="Frames")
     axes[0][0].set_ylabel("Mean return (last 20 episodes)")
     axes[1][0].set_ylabel("Mean return (last 20 episodes)")
     fig.suptitle("Convergence and stability across the hyperparameter sweep (coloured = best run; dashed = heuristic)",
@@ -292,7 +298,7 @@ def main():
     # 6) hyperparameter sensitivity -----------------------------------------------------
     fig, ax = plt.subplots(figsize=(8, 3.6))
     for i, (a, (summ, _)) in enumerate(data.items()):
-        v = summ["final_return_mean"].values
+        v = summ.loc[~summ["run_id"].astype(str).str.endswith("_long"), "final_return_mean"].values
         jitter = np.random.default_rng(i).uniform(-0.12, 0.12, len(v))
         ax.scatter(np.full(len(v), i) + jitter, v, s=46, color=COLORS[a], edgecolor="white", linewidth=1.5, zorder=3)
     ax.axhline(base[("Heuristic", "final")][0], color=GREY, ls="--", lw=1.2, label="Heuristic")

@@ -137,6 +137,23 @@ neglect arrives days later. Ranking women once and acting greedily ignores these
 sequential policy that weighs the value of each action now against its consequences later is exactly what RL optimises.
 A rule-based coordinator (`heuristic_policy`) is included as a baseline the agents must beat.
 
+## Results (30 held-out episodes with unseen initial states)
+
+| Policy | Held-out return | Unseen stress scenario | Precancers treated | Precancers lost / period |
+|---|---|---|---|---|
+| **PPO, 300k frames (best, used by `main.py`)** | **102.3 ± 30.3** | **86.4** | **81%** | **0.6** |
+| DQN, 300k frames | 90.3 ± 34.4 | 62.6 | 75% | 1.3 |
+| Rule-based coordinator (baseline) | 73.6 ± 37.0 | 53.4 | 71% | 1.6 |
+| DQN, best of 100k sweep (γ = 0.90) | 66.7 ± 43.9 | 50.2 | 68% | 1.7 |
+| PPO, best of 100k sweep (10 epochs) | 58.2 ± 33.9 | 45.7 | 69% | 1.5 |
+| A2C, 300k frames | 47.6 ± 39.6 | 26.1 | 62% | 1.9 |
+| REINFORCE, 300k frames | 15.1 ± 37.9 | 11.3 | 61% | 2.2 |
+| Random policy | −11.2 ± 17.4 | −30.5 | – | – |
+
+With equal 100k-frame budgets (45 sweep runs), DQN learned fastest. With 300k frames, PPO learned the best policy:
+it uses about 32 CHW home visits per period, against 4 for the rule-based coordinator, to keep at-risk women engaged, and loses 63% fewer precancers.
+All figures and per-run tables are in `assets/`.
+
 ---
 
 ## Visualisation and integration
