@@ -128,8 +128,8 @@ class RunLogger:
         self.algo, self.run_id, self.config = algo, run_id, config
         self.dir = LOG_DIR / algo / run_id
         self.dir.mkdir(parents=True, exist_ok=True)
-        (self.dir / "config.json").write_text(json.dumps(config, indent=2))
-        self._f = open(self.dir / "progress.csv", "w", newline="")
+        (self.dir / "config.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
+        self._f = open(self.dir / "progress.csv", "w", newline="", encoding="utf-8")
         self._w = csv.DictWriter(self._f, fieldnames=self.FIELDS)
         self._w.writeheader()
         self.t0 = time.time()
@@ -162,15 +162,15 @@ class RunLogger:
         summary = {"algo": self.algo, "run_id": self.run_id, **self.config, **results,
                    "frames_to_90pct": self.frames_to_converge(),
                    "train_minutes": round((time.time() - self.t0) / 60, 2)}
-        (self.dir / "summary.json").write_text(json.dumps(summary, indent=2))
+        (self.dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
         path = LOG_DIR / f"{self.algo}_summary.csv"
         rows = []
         if path.exists():
-            with open(path, newline="") as f:
+            with open(path, newline="", encoding="utf-8") as f:
                 rows = [r for r in csv.DictReader(f) if r["run_id"] != self.run_id]
         rows.append({k: v for k, v in summary.items()})
         fields = list(dict.fromkeys(k for r in rows for k in r.keys()))
-        with open(path, "w", newline="") as f:
+        with open(path, "w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, fieldnames=fields)
             w.writeheader()
             w.writerows(rows)
@@ -221,7 +221,7 @@ def update_best_models() -> dict | None:
         path = LOG_DIR / f"{algo}_summary.csv"
         if not path.exists():
             continue
-        with open(path, newline="") as f:
+        with open(path, newline="", encoding="utf-8") as f:
             rows = [r for r in csv.DictReader(f) if r.get("final_return_mean")]
         if not rows:
             continue
@@ -236,5 +236,5 @@ def update_best_models() -> dict | None:
         if best_overall is None or cand["final_return_mean"] > best_overall["final_return_mean"]:
             best_overall = cand
     if best_overall:
-        (MODEL_DIR / "best_model.json").write_text(json.dumps(best_overall, indent=2))
+        (MODEL_DIR / "best_model.json").write_text(json.dumps(best_overall, indent=2), encoding="utf-8")
     return best_overall

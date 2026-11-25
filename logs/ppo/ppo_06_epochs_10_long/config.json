@@ -1,0 +1,21 @@
+{
+  "lr": 0.0003,
+  "gamma": 0.99,
+  "frames_per_batch": 1024,
+  "epochs": 10,
+  "minibatch": 128,
+  "clip": 0.2,
+  "gae_lambda": 0.95,
+  "entropy_coeff": 0.01,
+  "critic_coeff": 0.5,
+  "normalize_adv": true,
+  "hidden": 128,
+  "depth": 2,
+  "grad_clip": 0.5,
+  "seed": 0,
+  "run_id": "ppo_06_epochs_10_long",
+  "why": "best 100k config (ppo_06_epochs_10) retrained for 300,000 frames",
+  "algo": "ppo",
+  "total_frames": 300000,
+  "eval_every": 5000
+}

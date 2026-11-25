@@ -1,0 +1,13 @@
+Run,Change vs baseline,Hypothesis,Held-out return,Stress return,Treat-rate,Invalid/ep,Frames to 90%,Minutes
+reinforce_01_baseline,(baseline),REINFORCE with learned value baseline,-55.4 ± 22.1,-53.0,27%,61.5,5760,4.46
+reinforce_02_no_baseline,baseline=False,vanilla REINFORCE (normalised returns),-91.6 ± 13.6,-85.8,0%,90.1,5760,5.04
+reinforce_03_pure,"baseline=False, normalize_adv=False","textbook REINFORCE: raw returns, high variance",-90.0 ± 16.0,-90.3,0%,87.9,5742,4.56
+reinforce_04_lr_low,lr=0.0003,smaller policy steps,-83.8 ± 16.0,-89.9,0%,82.3,5760,3.44
+reinforce_05_lr_high,lr=0.003,larger policy steps: collapse risk,-79.5 ± 16.1,-87.1,0%,71.6,5757,3.37
+reinforce_06_gamma_095,gamma=0.95,shorter credit-assignment horizon,-76.7 ± 18.4,-77.7,15%,75.8,5712,3.34
+reinforce_07_batch_2,episodes_per_batch=2,fewer episodes per update: noisier gradient,-49.0 ± 15.6,-51.1,24%,49.8,100185,3.36
+reinforce_08_batch_16,episodes_per_batch=16,more episodes per update: fewer but cleaner updates,-87.9 ± 15.1,-95.0,0%,86.7,95175,3.36
+reinforce_09_entropy,entropy_coeff=0.01,entropy bonus keeps exploring,-65.8 ± 12.2,-72.4,1%,39.5,5739,3.88
+reinforce_10_small_net,"hidden=64, depth=1",lower capacity policy,-92.9 ± 11.4,-89.3,0%,93.4,10470,3.73
+reinforce_11_gamma_0999,gamma=0.999,near-undiscounted returns,-73.4 ± 11.2,-80.3,0%,51.8,5760,3.71
+reinforce_07_batch_2_long,episodes_per_batch=2,"best 100k config (reinforce_07_batch_2) retrained for 300,000 frames",15.1 ± 37.9,11.3,61%,15.5,215193,12.65

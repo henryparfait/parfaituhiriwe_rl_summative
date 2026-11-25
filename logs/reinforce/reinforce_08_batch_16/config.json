@@ -1,0 +1,18 @@
+{
+  "lr": 0.001,
+  "gamma": 0.99,
+  "episodes_per_batch": 16,
+  "baseline": true,
+  "normalize_adv": true,
+  "entropy_coeff": 0.0,
+  "value_coeff": 0.5,
+  "hidden": 128,
+  "depth": 2,
+  "grad_clip": 1.0,
+  "seed": 0,
+  "run_id": "reinforce_08_batch_16",
+  "why": "more episodes per update: fewer but cleaner updates",
+  "algo": "reinforce",
+  "total_frames": 100000,
+  "eval_every": 5000
+}

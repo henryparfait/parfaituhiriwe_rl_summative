@@ -1,0 +1,15 @@
+| Run | Change vs baseline | Hypothesis | Held-out return | Stress return | Treat-rate | Invalid/ep | Frames to 90% | Minutes |
+|---|---|---|---|---|---|---|---|---|
+| dqn_01_baseline | (baseline) | reference configuration | 9.3 ± 23.9 | 10.4 | 54% | 5.0 | 10000 | 7.24 |
+| dqn_02_lr_low | lr=0.0001 | smaller steps: slower but steadier learning? | 41.1 ± 36.7 | 32.2 | 63% | 1.5 | 100000 | 7.37 |
+| dqn_03_lr_high | lr=0.002 | larger steps: faster but less stable? | -28.4 ± 15.1 | -33.4 | 20% | 15.6 | 5000 | 5.47 |
+| dqn_04_gamma_090 | gamma=0.9 | myopic agent: ignores delayed treatment reward | 66.7 ± 43.9 | 50.2 | 68% | 5.4 | 55000 | 5.31 |
+| dqn_05_small_buffer | buffer_size=5000 | small replay: more correlated samples | 25.2 ± 30.0 | 11.4 | 65% | 8.5 | 80000 | 5.26 |
+| dqn_06_batch_256 | batch_size=256 | larger batch: lower gradient variance | 47.4 ± 32.2 | 45.1 | 78% | 11.6 | 85000 | 6.98 |
+| dqn_07_fast_eps | eps_end=0.01, eps_decay_frac=0.1 | exploit early: risk of premature convergence | 52.4 ± 32.9 | 35.6 | 73% | 7.6 | 5000 | 5.79 |
+| dqn_08_slow_eps | eps_end=0.1, eps_decay_frac=0.8 | explore long: better coverage, slower return growth | -14.4 ± 18.1 | -19.8 | 47% | 16.8 | 10000 | 4.96 |
+| dqn_09_target_fast | target_update=50 | frequent target sync: moving-target instability | -31.8 ± 26.3 | -34.5 | 49% | 33.6 | 40000 | 3.84 |
+| dqn_10_target_slow | target_update=2000 | slow target sync: stable but stale targets | 49.3 ± 31.3 | 38.8 | 69% | 9.8 | 20000 | 3.67 |
+| dqn_11_double_wide | hidden=256, double_dqn=True | Double DQN + wider net: less Q over-estimation | 13.3 ± 32.9 | -3.2 | 54% | 9.8 | 5000 | 4.83 |
+| dqn_12_high_utd | utd_ratio=1.0 | more gradient updates per collected frame | 5.5 ± 27.8 | -7.8 | 60% | 18.2 | 80000 | 6.72 |
+| dqn_04_gamma_090_long | gamma=0.9 | best 100k config (dqn_04_gamma_090) retrained for 300,000 frames | 90.3 ± 34.4 | 62.6 | 75% | 2.7 | 45000 | 16.87 |

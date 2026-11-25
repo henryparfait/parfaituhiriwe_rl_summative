@@ -1,0 +1,17 @@
+{
+  "lr": 0.0007,
+  "gamma": 0.99,
+  "frames_per_batch": 120,
+  "gae_lambda": 0.95,
+  "entropy_coeff": 0.05,
+  "critic_coeff": 0.5,
+  "hidden": 128,
+  "depth": 2,
+  "grad_clip": 0.5,
+  "seed": 0,
+  "run_id": "a2c_09_entropy_high",
+  "why": "strong exploration bonus",
+  "algo": "a2c",
+  "total_frames": 100000,
+  "eval_every": 5000
+}

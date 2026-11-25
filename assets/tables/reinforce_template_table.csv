@@ -1,0 +1,13 @@
+Run,Learning Rate,Gamma,Episodes / Update,Baseline,Return Normalisation,Entropy Coef.,Network,Mean Reward
+reinforce_01_baseline,0.001,0.99,8,learned V(s),yes,0.0,128x2,-55.4 ± 22.1
+reinforce_02_no_baseline,0.001,0.99,8,none,yes,0.0,128x2,-91.6 ± 13.6
+reinforce_03_pure,0.001,0.99,8,none,no,0.0,128x2,-90.0 ± 16.0
+reinforce_04_lr_low,0.0003,0.99,8,learned V(s),yes,0.0,128x2,-83.8 ± 16.0
+reinforce_05_lr_high,0.003,0.99,8,learned V(s),yes,0.0,128x2,-79.5 ± 16.1
+reinforce_06_gamma_095,0.001,0.95,8,learned V(s),yes,0.0,128x2,-76.7 ± 18.4
+reinforce_07_batch_2,0.001,0.99,2,learned V(s),yes,0.0,128x2,-49.0 ± 15.6
+reinforce_08_batch_16,0.001,0.99,16,learned V(s),yes,0.0,128x2,-87.9 ± 15.1
+reinforce_09_entropy,0.001,0.99,8,learned V(s),yes,0.01,128x2,-65.8 ± 12.2
+reinforce_10_small_net,0.001,0.99,8,learned V(s),yes,0.0,64x1,-92.9 ± 11.4
+reinforce_11_gamma_0999,0.001,0.999,8,learned V(s),yes,0.0,128x2,-73.4 ± 11.2
+reinforce_07_batch_2_long,0.001,0.99,2,learned V(s),yes,0.0,128x2,15.1 ± 37.9

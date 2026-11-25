@@ -1,0 +1,23 @@
+{
+  "lr": 0.002,
+  "gamma": 0.99,
+  "batch_size": 64,
+  "buffer_size": 50000,
+  "eps_start": 1.0,
+  "eps_end": 0.05,
+  "eps_decay_frac": 0.4,
+  "target_update": 500,
+  "hidden": 128,
+  "depth": 2,
+  "double_dqn": false,
+  "frames_per_batch": 200,
+  "utd_ratio": 0.25,
+  "learning_starts": 2000,
+  "grad_clip": 10.0,
+  "seed": 0,
+  "run_id": "dqn_03_lr_high",
+  "why": "larger steps: faster but less stable?",
+  "algo": "dqn",
+  "total_frames": 100000,
+  "eval_every": 5000
+}

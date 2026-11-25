@@ -1,0 +1,33 @@
+flowchart LR
+  subgraph APP["1 - Real-world data sources (app)"]
+    direction TB
+    R["HPV test registry<br/>referrals, dates"]
+    N["Nurse app<br/>AI cervical-image risk score"]
+    C["CHW app<br/>visits, SMS replies, attendance"]
+    R ~~~ N ~~~ C
+  end
+  subgraph ENV["2 - KaguguFollowUpEnv (Gymnasium)"]
+    direction TB
+    S["Observation<br/>8 women x 10 features + 4 global = 84"]
+    D["Dynamics<br/>engagement decay, attendance,<br/>AI triage, loss to follow-up"]
+    RW["Reward<br/>+10 treated precancer, -8 lost,<br/>-6 missed lesion, action costs"]
+    S --> D --> RW
+  end
+  subgraph TRL["3 - TorchRL training"]
+    direction TB
+    W["GymWrapper + InitTracker,<br/>StepCounter, RewardSum"]
+    DQN["DQN<br/>QValueActor, e-greedy,<br/>replay buffer, target net"]
+    PG["REINFORCE / A2C / PPO<br/>ProbabilisticActor + ValueOperator,<br/>MC returns / GAE"]
+    W --> DQN
+    W --> PG
+  end
+  subgraph DEP["4 - Deployment / demo"]
+    direction TB
+    M["models/*.pt<br/>plain PyTorch state_dict"]
+    V["main.py + LiveViewer API<br/>/api/state, /api/recommend"]
+    UI["three.js 3D viewer"]
+    M --> V --> UI
+  end
+  APP --> ENV
+  ENV --> TRL
+  TRL --> DEP

@@ -5,6 +5,8 @@ Turn the training logs into the report's figures and tables.
 
 Outputs (assets/):
   fig_compare_rewards.png   held-out evaluation return vs frames, best run of each algorithm + baselines
+  fig_cumulative_rewards.png  episode return vs training episodes, one subplot per method (template a)
+  fig_episodes_to_converge.png  held-out return vs episodes with 90%-of-final marker (template b)
   fig_dqn_objective.png     DQN TD-loss and mean max-Q across all DQN runs
   fig_pg_entropy.png        policy entropy for REINFORCE / A2C / PPO (all runs, best highlighted)
   fig_convergence.png       training return of every run, one panel per algorithm (stability)
@@ -47,6 +49,11 @@ plt.rcParams.update({
 })
 
 
+from matplotlib.ticker import FuncFormatter  # noqa: E402
+
+KFMT = FuncFormatter(lambda x, _: f"{x / 1000:.0f}k" if x else "0")
+
+
 def smooth(y: pd.Series, k: int = 10) -> pd.Series:
     return y.rolling(k, min_periods=1).mean()
 
@@ -86,7 +93,9 @@ def load_algo(algo: str):
 
 
 def best_run(summ: pd.DataFrame) -> str:
-    return summ.loc[summ["final_return_mean"].idxmax(), "run_id"]
+    """Best run of the equal-budget (100k) sweep; extended '_long' runs are reported separately."""
+    sw = summ[~summ["run_id"].astype(str).str.endswith("_long")]
+    return sw.loc[sw["final_return_mean"].idxmax(), "run_id"]
 
 
 def to_markdown(df: pd.DataFrame) -> str:
@@ -97,10 +106,47 @@ def to_markdown(df: pd.DataFrame) -> str:
 
 
 def save(fig, name: str):
+    for ax in fig.axes:   # compact "25k" frame labels
+        if "Frames" in ax.get_xlabel() or "frames" in ax.get_xlabel():
+            ax.xaxis.set_major_formatter(KFMT)
     ASSETS.mkdir(exist_ok=True)
     fig.savefig(ASSETS / name, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     print("wrote", ASSETS / name)
+
+
+def _mr(r) -> str:
+    return f"{r['final_return_mean']:.1f} ± {r['final_return_std']:.1f}"
+
+
+def template_table(algo: str, summ: pd.DataFrame) -> pd.DataFrame:
+    rows = []
+    for _, r in summ.iterrows():
+        net = f"{int(r['hidden'])}x{int(r['depth'])}"
+        if algo == "dqn":
+            rows.append({"Run": r["run_id"], "Learning Rate": r["lr"], "Gamma": r["gamma"],
+                         "Replay Buffer Size": int(r["buffer_size"]), "Batch Size": int(r["batch_size"]),
+                         "Exploration Strategy": f"ε-greedy 1.0→{r['eps_end']} over {r['eps_decay_frac']:.0%} of frames",
+                         "Target Update (steps)": int(r["target_update"]),
+                         "Other": ("Double DQN, " if str(r["double_dqn"]) == "True" else "") + f"net {net}, UTD {r['utd_ratio']}",
+                         "Mean Reward": _mr(r)})
+        elif algo == "reinforce":
+            rows.append({"Run": r["run_id"], "Learning Rate": r["lr"], "Gamma": r["gamma"],
+                         "Episodes / Update": int(r["episodes_per_batch"]),
+                         "Baseline": "learned V(s)" if str(r["baseline"]) == "True" else "none",
+                         "Return Normalisation": "yes" if str(r["normalize_adv"]) == "True" else "no",
+                         "Entropy Coef.": r["entropy_coeff"], "Network": net, "Mean Reward": _mr(r)})
+        elif algo == "a2c":
+            rows.append({"Run": r["run_id"], "Learning Rate": r["lr"], "Gamma": r["gamma"],
+                         "Rollout Length": int(r["frames_per_batch"]), "GAE λ": r["gae_lambda"],
+                         "Entropy Coef.": r["entropy_coeff"], "Critic Coef.": r["critic_coeff"],
+                         "Network": net, "Mean Reward": _mr(r)})
+        else:
+            rows.append({"Run": r["run_id"], "Learning Rate": r["lr"], "Gamma": r["gamma"],
+                         "Rollout / Minibatch": f"{int(r['frames_per_batch'])} / {int(r['minibatch'])}",
+                         "Epochs": int(r["epochs"]), "Clip ε": r["clip"], "GAE λ": r["gae_lambda"],
+                         "Entropy Coef.": r["entropy_coeff"], "Mean Reward": _mr(r)})
+    return pd.DataFrame(rows)
 
 
 def main():
@@ -122,6 +168,46 @@ def main():
            xlabel="Environment frames", ylabel="Mean return, 10 held-out episodes")
     ax.legend(loc="lower right", fontsize=8.5)
     save(fig, "fig_compare_rewards.png")
+
+    # 1b) template figure: episode returns over EPISODES, one subplot per method (best runs)
+    conv_eps = {}
+    fig, axes = plt.subplots(2, 2, figsize=(10, 6.4), sharey=True)
+    for ax, a in zip(axes.flat, ALGOS):
+        if a not in data:
+            ax.set_visible(False)
+            continue
+        df = data[a][1][best[a]].dropna(subset=["train_return"])
+        ax.plot(df["episodes"], df["train_return"], color=COLORS[a])
+        ax.axhline(base[("Heuristic", "final")][0], color=GREY, ls="--", lw=1)
+        ax.set(title=f"{NAMES[a]} ({best[a]})", xlabel="Training episodes")
+    axes[0][0].set_ylabel("Episode return (moving avg. of 20)")
+    axes[1][0].set_ylabel("Episode return (moving avg. of 20)")
+    fig.suptitle("Cumulative reward per episode, best model of each method (dashed = rule-based heuristic)",
+                 fontsize=10, color=MUTED)
+    fig.tight_layout()
+    save(fig, "fig_cumulative_rewards.png")
+
+    # 1c) template figure: episodes to converge (held-out eval return vs episodes, 90% marker)
+    fig, axes = plt.subplots(2, 2, figsize=(10, 6.4), sharey=True)
+    for ax, a in zip(axes.flat, ALGOS):
+        if a not in data:
+            ax.set_visible(False)
+            continue
+        df = data[a][1][best[a]]
+        ev = df.dropna(subset=["eval_return"])
+        ax.plot(ev["episodes"], ev["eval_return"], color=COLORS[a], marker="o", markersize=3.5)
+        f90 = data[a][0].set_index("run_id").loc[best[a]].get("frames_to_90pct")
+        if pd.notna(f90):
+            ep = int(df.loc[df["frames"] >= float(f90), "episodes"].iloc[0])
+            conv_eps[a] = ep
+            ax.axvline(ep, color=MUTED, ls=":", lw=1.2)
+            ax.annotate(f"90% of final level\n@ {ep} episodes", xy=(ep, ev["eval_return"].min()),
+                        xytext=(6, 4), textcoords="offset points", fontsize=8, color=MUTED)
+        ax.set(title=f"{NAMES[a]}: held-out evaluation", xlabel="Training episodes")
+    axes[0][0].set_ylabel("Mean return, 10 held-out episodes")
+    axes[1][0].set_ylabel("Mean return, 10 held-out episodes")
+    fig.tight_layout()
+    save(fig, "fig_episodes_to_converge.png")
 
     # 2) DQN objective ---------------------------------------------------------------------
     if "dqn" in data:
@@ -215,6 +301,29 @@ def main():
     ax.legend(fontsize=8.5)
     save(fig, "fig_hparam_effects.png")
 
+    # 6b) extended runs (phase 2), if any
+    longs = {a: [r for r in data[a][1] if r.endswith("_long")] for a in data}
+    if any(longs.values()):
+        fig, ax = plt.subplots(figsize=(8, 4.2))
+        for a, rids in longs.items():
+            for rid in rids:
+                df = data[a][1][rid].dropna(subset=["eval_return"])
+                ax.plot(df["frames"], smooth(df["eval_return"], 3), color=COLORS[a], label=f"{NAMES[a]} ({rid})")
+        ax.axvline(100_000, color=MUTED, ls=":", lw=1)
+        ax.axhline(base[("Heuristic", "final")][0], color=GREY, ls="--", lw=1.2, label="Heuristic")
+        ax.set(title="Extended training of each method's best configuration", xlabel="Frames",
+               ylabel="Held-out eval return (smoothed)")
+        ax.legend(fontsize=8)
+        save(fig, "fig_extended_training.png")
+        ext = ["", "| Extended run | Held-out return | Stress return | Treat-rate |", "|---|---|---|---|"]
+        for a, rids in longs.items():
+            for rid in rids:
+                r = data[a][0].set_index("run_id").loc[rid]
+                ext.append(f"| {rid} | {r['final_return_mean']:.1f} ± {r['final_return_std']:.1f} | "
+                           f"{r['stress_return_mean']:.1f} | {r['final_precancer_treatment_rate']:.0%} |")
+    else:
+        ext = []
+
     # 7) tables + summary -----------------------------------------------------------------
     tdir = ASSETS / "tables"
     tdir.mkdir(parents=True, exist_ok=True)
@@ -247,16 +356,24 @@ def main():
                 "Minutes": r.get("train_minutes", ""),
             })
         tab = pd.DataFrame(rows)
-        tab.to_csv(tdir / f"{a}_sweep.csv", index=False)
-        (tdir / f"{a}_sweep.md").write_text(to_markdown(tab))
+        tab.to_csv(tdir / f"{a}_sweep.csv", index=False, encoding="utf-8")
+        (tdir / f"{a}_sweep.md").write_text(to_markdown(tab), encoding="utf-8")
         b = summ.set_index("run_id").loc[best[a]]
         f90 = b.get("frames_to_90pct")
         lines.append(f"| {NAMES[a]} | {best[a]} | {b['final_return_mean']:.1f} ± {b['final_return_std']:.1f} | "
                      f"{b['stress_return_mean']:.1f} | {b['final_precancer_treatment_rate']:.0%} | "
                      f"{b['final_lost_precancer']:.2f} | {b['final_invalid_actions']:.1f} | "
                      f"{'' if pd.isna(f90) else int(f90)} |")
-    (ASSETS / "results_summary.md").write_text("\n".join(lines) + "\n")
-    (ASSETS / "baselines.json").write_text(json.dumps({f"{k[0]}_{k[1]}": v for k, v in base.items()}, indent=2))
+    # template-shaped tables (columns requested by the report template)
+    for a, (summ, _) in data.items():
+        tab = template_table(a, summ)
+        tab.to_csv(tdir / f"{a}_template_table.csv", index=False)
+        (tdir / f"{a}_template_table.md").write_text(to_markdown(tab), encoding="utf-8")
+    lines += ["", "Episodes to reach 90% of final evaluation level (best run): " +
+              ", ".join(f"{NAMES[a]} {e}" for a, e in conv_eps.items())]
+    lines += ext
+    (ASSETS / "results_summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (ASSETS / "baselines.json").write_text(json.dumps({f"{k[0]}_{k[1]}": v for k, v in base.items()}, indent=2), encoding="utf-8")
     print("\n".join(lines))
 
 

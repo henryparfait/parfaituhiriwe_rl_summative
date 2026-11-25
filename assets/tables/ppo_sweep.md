@@ -1,0 +1,14 @@
+| Run | Change vs baseline | Hypothesis | Held-out return | Stress return | Treat-rate | Invalid/ep | Frames to 90% | Minutes |
+|---|---|---|---|---|---|---|---|---|
+| ppo_01_baseline | (baseline) | reference configuration | 45.1 ± 45.5 | -0.0 | 65% | 1.2 | 70656 | 5.96 |
+| ppo_02_lr_low | lr=0.0001 | smaller steps | -61.2 ± 25.2 | -64.1 | 18% | 63.1 | 70656 | 6.43 |
+| ppo_03_lr_high | lr=0.001 | larger steps | 44.9 ± 31.7 | 44.9 | 68% | 4.4 | 40960 | 4.62 |
+| ppo_04_clip_01 | clip=0.1 | tighter trust region: conservative updates | 30.6 ± 43.5 | 12.7 | 64% | 6.1 | 55296 | 4.31 |
+| ppo_05_clip_03 | clip=0.3 | looser trust region | 13.2 ± 31.3 | 10.5 | 57% | 18.2 | 65536 | 4.33 |
+| ppo_06_epochs_10 | epochs=10 | more reuse of each batch: overfitting/instability? | 58.2 ± 33.9 | 45.7 | 69% | 0.6 | 50176 | 5.48 |
+| ppo_07_small_batch | frames_per_batch=256, minibatch=64 | short rollouts | 33.4 ± 47.1 | 34.7 | 60% | 3.2 | 75008 | 5.75 |
+| ppo_08_large_batch | frames_per_batch=4096, minibatch=256 | long rollouts: fewer updates | 32.0 ± 34.4 | 17.7 | 60% | 2.5 | 65536 | 4.51 |
+| ppo_09_no_entropy | entropy_coeff=0.0 | no exploration bonus | 27.5 ± 47.1 | 7.8 | 62% | 5.8 | 40960 | 4.33 |
+| ppo_10_entropy_high | entropy_coeff=0.05 | strong exploration bonus | 42.2 ± 44.5 | 36.7 | 64% | 3.3 | 70656 | 3.39 |
+| ppo_11_lambda_gamma | gamma=0.95, gae_lambda=0.8 | shorter horizon, more bias | 36.0 ± 39.4 | 32.8 | 61% | 0.7 | 40960 | 3.26 |
+| ppo_06_epochs_10_long | epochs=10 | best 100k config (ppo_06_epochs_10) retrained for 300,000 frames | 102.3 ± 30.3 | 86.4 | 81% | 1.5 | 175104 | 16.95 |

@@ -1,0 +1,6 @@
+{
+  "algo": "ppo",
+  "run_id": "ppo_06_epochs_10_long",
+  "path": "models/pg/ppo_best.pt",
+  "final_return_mean": 102.29099999999997
+}
