@@ -30,7 +30,7 @@ import numpy as np
 from gymnasium import spaces
 
 # ----------------------------------------------------------------------------
-# Constants (documented in the report's environment section)
+# Constants
 # ----------------------------------------------------------------------------
 N_SLOTS = 8                 # women in the active caseload at one time
 ACTIONS_PER_DAY = 3         # coordinator decisions per working day
@@ -187,7 +187,7 @@ class KaguguFollowUpEnv(gym.Env):
         self.episode_return = 0.0
         self.t = 0
 
-    # ------------------------------------------------------------------ helpers
+    #  helpers
     def _new_woman(self) -> Woman:
         rng = self.np_random
         self._uid += 1
@@ -215,7 +215,7 @@ class KaguguFollowUpEnv(gym.Env):
     def _exit(self, slot: int) -> None:
         self.women[slot] = Woman()
 
-    # ------------------------------------------------------------------ gym API
+    #  gym API
     def reset(self, *, seed: int | None = None, options: dict | None = None):
         super().reset(seed=seed)
         self._uid = 0
@@ -327,7 +327,7 @@ class KaguguFollowUpEnv(gym.Env):
                         w.engagement = max(0.0, w.engagement - MISSED_APPT_LOSS)
                         event = f"Slot {slot + 1} did not attend treatment"
 
-        # ---- advance the clock
+        #  advance the clock
         self.decisions_left -= 1
         terminated = False
         if self.decisions_left == 0:
@@ -379,7 +379,7 @@ class KaguguFollowUpEnv(gym.Env):
             self.chw_budget = CHW_WEEKLY_BUDGET
         return reward
 
-    # ------------------------------------------------------------------ observation
+    #  observation
     def _obs(self) -> np.ndarray:
         obs = np.zeros(OBS_DIM, dtype=np.float32)
         for i, w in enumerate(self.women):
@@ -411,7 +411,7 @@ class KaguguFollowUpEnv(gym.Env):
     def _info(self) -> dict:
         return {"day": self.day, "chw_budget": self.chw_budget, **self.stats.as_dict()}
 
-    # ------------------------------------------------------------------ rendering
+    #  rendering
     def render_state(self) -> dict:
         """Serializable snapshot consumed by the three.js viewer (and the API)."""
         women = []

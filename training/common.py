@@ -77,7 +77,7 @@ def episode_returns_from_batch(data) -> list[float]:
     return ep_r[done].tolist()
 
 
-# --------------------------------------------------------------------------- evaluation
+#  evaluation
 def greedy_act_fn(net: nn.Module):
     """Deterministic policy from a Q-network or a policy-logits network."""
     @torch.no_grad()
@@ -116,7 +116,7 @@ def final_evaluation(net: nn.Module) -> dict:
     return res
 
 
-# --------------------------------------------------------------------------- logging
+#   logging
 class RunLogger:
     """Writes logs/<algo>/<run_id>/progress.csv + config.json, and a summary row."""
 
@@ -177,7 +177,7 @@ class RunLogger:
         return summary
 
 
-# --------------------------------------------------------------------------- serialisation
+#  serialisation
 def save_policy(net: nn.Module, path: Path, algo: str, arch: dict, config: dict, results: dict):
     """Plain-PyTorch checkpoint: loading it needs only torch (no TorchRL) -> easy to deploy."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -210,7 +210,7 @@ def arch_dict(hidden: int, depth: int, activation: str) -> dict:
             "activation": activation}
 
 
-# --------------------------------------------------------------------------- model selection
+#   model selection
 def update_best_models() -> dict | None:
     """Copy each algorithm's best run (highest held-out return) to <algo>_best.pt and
     record the overall winner in models/best_model.json (read by main.py)."""

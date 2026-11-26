@@ -1,7 +1,6 @@
 # Kagugu Follow-Up Coordinator: Reinforcement Learning Summative
 
-**Author:** Henry Christian Parfait · **Repository:** [henryparfait/parfaituhiriwe_rl_summative](https://github.com/henryparfait/parfaituhiriwe_rl_summative)
-
+**Author:** Henry Christian Parfait Uhiriwe · 
 **Mission:** AI-Assisted Triage and Community Follow-Up App for HPV-Positive Women at Kagugu Health Centre, Rwanda.
 Late detection of cervical precancer happens when HPV-positive women are missed at triage or lost before treatment.
 This project trains an RL agent to act as the health centre's **follow-up coordinator**: every day it decides who
